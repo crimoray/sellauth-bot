@@ -13,7 +13,6 @@ A Discord bot for SellAuth invoice verification and ticket management.
 ## Commands
 
 - `/invoice <invoice_id>` - Check an invoice status
-- `/check <invoice_id>` - Manually check an invoice status
 - `/ticket` - Set up the ticket system
 - `/config staff <role>` - Configure the staff role
 - `/config category <category>` - Set the ticket category
