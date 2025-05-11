@@ -1,0 +1,6 @@
+@echo off
+echo Installing dependencies...
+call npm install
+echo.
+echo Starting the bot...
+call npm start 
