@@ -1,6 +1,4 @@
 @echo off
-echo Installing dependencies...
-call npm install
-echo.
-echo Starting the bot...
-call npm start 
+echo Starting SellAuth Bot...
+node src/index.js
+pause 
