@@ -36,9 +36,13 @@ The bot will automatically prompt you for any missing environment variables duri
 
 ## Commands
 
-- `/invoice` - Check invoice status
+- `/invoice` - Check invoice status in tickets
+- `/check` - Manually check invoice status anywhere
 - `/embed` - Create ticket system embed
-- `/config` - Configure bot settings
+- `/config staff` - Configure staff role
+- `/config category` - Configure ticket category
+- `/config transcript` - Configure transcript channel
+- `/config reset` - Reset all configurations
 - `/close` - Close current ticket
 
 ## Features

@@ -110,8 +110,8 @@ async function initializeBot() {
             .setDescription('Configure bot settings')
             .addSubcommand(subcommand =>
                 subcommand
-                    .setName('ticket')
-                    .setDescription('Configure ticket settings')
+                    .setName('staff')
+                    .setDescription('Configure staff role')
                     .addRoleOption(option =>
                         option.setName('staff_role')
                             .setDescription('The role to ping for paid invoices')
@@ -141,7 +141,15 @@ async function initializeBot() {
         
         new SlashCommandBuilder()
             .setName('close')
-            .setDescription('Close the current ticket')
+            .setDescription('Close the current ticket'),
+
+        new SlashCommandBuilder()
+            .setName('check')
+            .setDescription('Manually check an invoice status')
+            .addStringOption(option =>
+                option.setName('invoice_id')
+                    .setDescription('The invoice ID to check')
+                    .setRequired(true))
     ].map(command => command.toJSON());
 
     // Register commands
@@ -207,7 +215,7 @@ async function initializeBot() {
                 }
                 break;
             case 'config':
-                if (interaction.options.getSubcommand() === 'ticket') {
+                if (interaction.options.getSubcommand() === 'staff') {
                     await handleTicketConfig(interaction);
                 } else if (interaction.options.getSubcommand() === 'category') {
                     await handleCategoryConfig(interaction);
@@ -219,6 +227,9 @@ async function initializeBot() {
                 break;
             case 'close':
                 await handleTicketClose(interaction);
+                break;
+            case 'check':
+                await handleInvoiceCommand(interaction);
                 break;
         }
     });
