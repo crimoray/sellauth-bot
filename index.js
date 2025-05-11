@@ -699,16 +699,23 @@ async function initializeBot() {
             });
         }
 
+        // Defer the reply to extend the interaction timeout
+        await interaction.deferReply();
+
         // Clean up processed tickets when closing
         processedTickets.delete(channel.id);
 
-        await interaction.reply('🔒 This ticket will be closed in 5 seconds...');
+        await interaction.editReply('🔒 This ticket will be closed in 5 seconds...');
         
         // Generate and send transcript before closing
         await generateTranscript(channel);
         
         setTimeout(async () => {
-            await channel.delete();
+            try {
+                await channel.delete();
+            } catch (error) {
+                console.error('Error deleting channel:', error);
+            }
         }, 5000);
     }
 
