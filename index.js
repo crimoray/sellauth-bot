@@ -537,10 +537,127 @@ async function initializeBot() {
         });
     }
 
+    // Add this after loadConfigurations function
+    async function checkServerConfig(guild) {
+        const config = serverConfigs.get(guild.id) || {};
+        const missingConfigs = [];
+
+        if (!config.staffRole) missingConfigs.push('staff role');
+        if (!config.ticketCategory) missingConfigs.push('ticket category');
+        if (!config.transcriptChannel) missingConfigs.push('transcript channel');
+
+        if (missingConfigs.length > 0) {
+            const embed = new EmbedBuilder()
+                .setTitle('⚠️ Server Configuration Required')
+                .setDescription(`Please configure the following settings using the commands below:\n\n${missingConfigs.map(setting => `• \`/config ${setting.split(' ')[0]}\` - Set ${setting}`).join('\n')}`)
+                .setColor('#ff9900')
+                .setTimestamp();
+
+            // Try to find a channel to send the message
+            const systemChannel = guild.systemChannel || guild.channels.cache.find(channel => 
+                channel.type === ChannelType.GuildText && 
+                channel.permissionsFor(guild.members.me).has(PermissionFlagsBits.SendMessages)
+            );
+
+            if (systemChannel) {
+                await systemChannel.send({ embeds: [embed] });
+            }
+            return false;
+        }
+        return true;
+    }
+
+    // Modify the generateTranscript function to include embeds
+    async function generateTranscript(channel) {
+        try {
+            const messages = await channel.messages.fetch({ limit: 100 });
+            let transcript = '';
+            
+            // Process messages in chronological order
+            const sortedMessages = messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+            
+            for (const msg of sortedMessages.values()) {
+                const timestamp = new Date(msg.createdTimestamp).toLocaleString();
+                let content = `[${timestamp}] ${msg.author.tag}: `;
+                
+                // Add message content
+                if (msg.content) {
+                    content += msg.content;
+                }
+                
+                // Add embeds
+                if (msg.embeds && msg.embeds.length > 0) {
+                    content += '\n[Embeds:';
+                    msg.embeds.forEach((embed, index) => {
+                        content += `\n  Embed ${index + 1}:`;
+                        if (embed.title) content += `\n    Title: ${embed.title}`;
+                        if (embed.description) content += `\n    Description: ${embed.description}`;
+                        if (embed.fields && embed.fields.length > 0) {
+                            content += '\n    Fields:';
+                            embed.fields.forEach(field => {
+                                content += `\n      ${field.name}: ${field.value}`;
+                            });
+                        }
+                    });
+                    content += '\n]';
+                }
+                
+                transcript += content + '\n';
+            }
+
+            const transcriptEmbed = new EmbedBuilder()
+                .setTitle(`Ticket Transcript - ${channel.name}`)
+                .setDescription(`Transcript for ticket ${channel.name}`)
+                .setColor('#0099ff')
+                .setTimestamp();
+
+            const transcriptChannel = channel.guild.channels.cache.get(
+                serverConfigs.get(channel.guild.id)?.transcriptChannel
+            );
+
+            if (transcriptChannel) {
+                await transcriptChannel.send({
+                    embeds: [transcriptEmbed],
+                    files: [{
+                        attachment: Buffer.from(transcript),
+                        name: `transcript-${channel.name}.txt`
+                    }]
+                });
+            }
+        } catch (error) {
+            console.error('Error generating transcript:', error);
+        }
+    }
+
+    // Modify the client.on('ready') event to check configurations
+    client.once('ready', async () => {
+        console.log(`Logged in as ${client.user.tag}!`);
+        await loadConfigurations();
+        
+        // Check configurations for all guilds
+        for (const guild of client.guilds.cache.values()) {
+            await checkServerConfig(guild);
+        }
+    });
+
+    // Add guild join event handler
+    client.on('guildCreate', async guild => {
+        await checkServerConfig(guild);
+    });
+
+    // Modify handleTicketCreation to check configuration
     async function handleTicketCreation(interaction) {
         try {
             const guild = interaction.guild;
             const user = interaction.user;
+
+            // Check if server is properly configured
+            if (!await checkServerConfig(guild)) {
+                return await interaction.reply({
+                    content: '❌ Please configure the bot settings first using the configuration commands.',
+                    ephemeral: true
+                });
+            }
 
             // Check if user already has an open ticket
             const existingTicket = guild.channels.cache.find(
@@ -663,39 +780,6 @@ async function initializeBot() {
                     console.error('Error sending error message:', replyError);
                 }
             }
-        }
-    }
-
-    // Add this function to generate and send transcript
-    async function generateTranscript(channel) {
-        try {
-            const messages = await channel.messages.fetch({ limit: 100 });
-            const transcript = messages.reverse().map(msg => {
-                const timestamp = new Date(msg.createdTimestamp).toLocaleString();
-                return `[${timestamp}] ${msg.author.tag}: ${msg.content}`;
-            }).join('\n');
-
-            const transcriptEmbed = new EmbedBuilder()
-                .setTitle(`Ticket Transcript - ${channel.name}`)
-                .setDescription(`Transcript for ticket ${channel.name}`)
-                .setColor('#0099ff')
-                .setTimestamp();
-
-            const transcriptChannel = channel.guild.channels.cache.get(
-                serverConfigs.get(channel.guild.id)?.transcriptChannel
-            );
-
-            if (transcriptChannel) {
-                await transcriptChannel.send({
-                    embeds: [transcriptEmbed],
-                    files: [{
-                        attachment: Buffer.from(transcript),
-                        name: `transcript-${channel.name}.txt`
-                    }]
-                });
-            }
-        } catch (error) {
-            console.error('Error generating transcript:', error);
         }
     }
 
@@ -839,12 +923,6 @@ async function initializeBot() {
                 components: [row]
             });
         }
-    });
-
-    // Login to Discord
-    client.once('ready', async () => {
-        console.log(`Logged in as ${client.user.tag}!`);
-        await loadConfigurations();
     });
 
     client.login(process.env.DISCORD_TOKEN);
